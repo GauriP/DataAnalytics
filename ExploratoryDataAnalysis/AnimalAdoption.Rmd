@@ -295,28 +295,31 @@ Here we can see that most of the adopted animals didnt have any information on t
 
 We will look at three of the most informative plots we glanced at above. 
 ```{r}
-ggplot(aes(x = OutcomeType, fill = OutcomeSubtype), data = trainD) + geom_histogram(stat = "count")
+ggplot(aes(x = OutcomeType, fill = OutcomeSubtype), data = trainD) + geom_histogram(stat = "count")+ggtitle("Comparing outcome type to subtype")
 ```
 
 In the plot above we get an idea of how the outcome is related to outcome subtypes. We can see the pattern where based on the outcome subtype we can agther what the outcome for the animal would be.
 ```{r}
 ggplot(aes(x = SexuponOutcome, fill = OutcomeType), data = trainD)+
-  geom_histogram(stat = "count")
+  geom_histogram(stat = "count") +
+  ggtitle("Relation between Sex of animal and outcome")
 ```
 
 Here we can see that most of the animals that are neutered are adopted, returned to their owners or transfered to another facility. 
 
 ```{r}
-ggplot(aes(x = AgeRange, fill = OutcomeType), data =trainD[!is.na(trainD$AgeRange),]) +geom_histogram(stat = "count")
+ggplot(aes(x = AgeRange, fill = OutcomeType), data =trainD[!is.na(trainD$AgeRange),]) +
+  geom_histogram(stat = "count") +
+  ggtitle("Number of Animals in age range colored based on outcome types")
 ```
 
 Here we see the distribution of outcome type based on the age range. 
 ```{r}
 a <- ggplot(aes(x = Date, y = n), data = subset(AnimalGrped , AnimalType == "Cat",OutcomeType = "Adoption")) +
-  geom_point(alpha = 0.7, color = "#E69F00")
+  geom_point(alpha = 0.7, color = "#E69F00") + ggtitle("Cat adoption data")
 
 b <- ggplot(aes(x = Date, y = n), data = subset(AnimalGrped , AnimalType == "Dog",OutcomeType = "Adoption"))+
-  geom_point(alpha = 0.7, color = "#0072B2")
+  geom_point(alpha = 0.7, color = "#0072B2") +ggtitle("Dog Adoption data")
 
 grid.arrange(a,b,ncol = 1)
 
