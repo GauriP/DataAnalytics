@@ -1,0 +1,342 @@
+---
+title: "AnimalAdoption"
+output: html_document
+---
+#Animal Adoption dataset from Austin Texas.
+
+This data was gathered from a Kaggle competition. Using this dataset the eventual goal is to predict whether the animal given the features will be Adopted or not. This report does an preliminary data exploration on the dataset.
+
+# Setup and initial analysis
+  We read the dataset from the CSV file and load the required libraries. 
+```{r}
+library('ggplot2')
+library('dplyr')
+library(gridExtra)
+library(reshape2)
+
+trainD = read.csv("train.csv")
+colnames(trainD)
+
+```
+The column names for the dataset are given above. The column named OutcomeType is the predicted variable in our dataset.
+
+## Getting familiar with the Animal Adoption dataset form City of Austin Texas.
+```{r}
+
+trainD$Date <- as.Date(trainD$DateTime)
+summary(trainD)
+```
+From the data summary above we can see that the two types of animals represented by this datset are dogs and cats. Their age is in various different formats, some are in days, some in months and some in years.We try and fix this issue in further exploration. We convert the datetime format into a date format so we can better plot the data. The sex of the animals upon adoption are also listed here. we can see a lot many animals are marked as being of unknown sex, this could be because of human error in data entry. Also the breed of the animals is listed , and it varies, since these are animals in shelters a very many of them might be of mixed breed.The outcome subtype column sheds some light the reasons for the OutcomeType. We explore that further in the report.
+
+```{r}
+
+ggplot(aes(x = OutcomeType), data = trainD)+geom_histogram(stat = "count")
+```
+
+
+In the above plot we can see the different types of outcomes for both the animal types. We can see that most animals in the shelter were adopted or transfered to another shelter. many of them were returned to their owners, these might be animals that ran away. A minor number of animals were euthanised or died. We will further explore the outcome subtypes with regards to the outcome types later in the report. This can shed some light on the reasons for the different outcomes.
+
+
+## Plot Date wise distribution of outcomes
+```{r}
+ggplot(aes(x = Date, color = "blue"), data = subset(trainD ,OutcomeType == "Adoption"))+
+         geom_jitter( stat = "count", alpha  = 0.7)
+
+ggplot(aes(x = Date, color = trainD$OutcomeType), data = trainD)+
+         geom_point(stat = "count", alpha = 0.5)
+```
+
+
+In the first plot we map the data for animals that get adopted. We can see that there seems to a slight sine wave when it comes to adoption, with there being a slight uptick in July. 
+We will look into this in the plots going further. 
+
+the 2nd plot shows data for all the different outcomes and there does not seem to be a lot of relation with the time of year and outcome for an animal other than upticks in adoptions and transfer during July or summer months.
+
+##Claim that black dogs dont get Adopted as often. 
+We will look into a claim that black dogs dont get adopted as much as other dogs do. This might be due to stigma associated with them(https://en.wikipedia.org/wiki/Black_dog_syndrome) or the fact that they dont picture well. Lets look into this claim a little further by plotting the ratio of animals adopted based on whether they are black in color or not. 
+
+```{r}
+strng = 'Black'
+isBlack <- function(x) {
+  val = grepl(strng, x)
+  return(val)
+}
+
+trainD$ifBlack <- lapply(trainD$Color, function(x) sapply(x, isBlack))
+trainD$ifBlack <- as.factor(unlist(trainD$ifBlack))
+groupedB <- trainD %>%
+  group_by(ifBlack, OutcomeType) %>%
+  summarise(n =n())
+
+ggplot(aes( x =  Date, color = OutcomeType), data = subset(trainD, ifBlack == TRUE) )+
+  geom_jitter(stat = "count", alpha =0.5) 
+ # geom_hline(yintercept = 1, alpha =0.03, linetype =2)
+```
+
+We can see in this plot that there does not seem to be a difference in the plot for just black or black mixed with another color dogs as compared to the earlier plot that we saw. We will further see if the there is any difference in outcome ratio as compared to the general animal population. 
+
+```{r}
+
+totalBlack = sum(groupedB[which(groupedB$ifBlack == TRUE),3])
+totalOther = sum(groupedB[which(groupedB$ifBlack == FALSE),3])
+
+a <- ggplot(aes(x = OutcomeType, y = n/totalBlack), data = subset(groupedB, groupedB$ifBlack == TRUE)) +
+  geom_bar(stat = "identity", fill = "green")
+
+b  <- ggplot(aes(x = OutcomeType, y = n/totalOther), data = subset(groupedB, groupedB$ifBlack == FALSE)) +
+  geom_bar(stat = "identity" , fill = "purple")
+  
+grid.arrange(a,b,ncol = 1)
+
+#trainD$ifBlack <- grepl(trainD$Color, "black")
+groupedB[groupedB$ifBlack==FALSE,3]/totalOther
+groupedB[groupedB$ifBlack==TRUE,3]/totalBlack
+```
+
+
+As we can see above there is not a whole lot of percentage difference between animal adoption based on color. But we can make this conclusion only for this dataset in Austin, it might not be a correct representative of the national adoption data.
+
+##Comparison based on grouped outcometype data
+```{r}
+
+library(gridExtra)
+grouped <- trainD %>%
+  group_by( Date, OutcomeType) %>%
+  summarise(n =n(),
+            sqrt_count = sqrt(n))
+
+ggplot(aes(x = Date, y = sqrt_count, color = grouped$OutcomeType), data = grouped) +
+  geom_jitter() +
+  geom_hline(yintercept = 1, alpha =0.03, linetype =2)
+```
+
+Based on the grouped data for date of outcome and the outcome, we can see that most of the data points for adoption and transfer lie in higher numbers as compared to the rate for euthanasia and died category. The return to owner numbers are in the mid range category. If we use the sqrt of the data it gives us a better spread of the data. 
+
+
+##In the plots below we will explore the difference in adoption rates for cats and dogs.
+```{r}
+CatSub <- subset(trainD, trainD$AnimalType == "Cat")
+DogSub <- subset(trainD, trainD$AnimalType == "Dog")
+
+Cat <- ggplot(aes(x = OutcomeType), data = subset(trainD, AnimalType == "Cat"))+
+  geom_histogram(stat = "count", fill = "red") +
+  ggtitle("Cat data")
+
+Dog <- ggplot(aes(x = OutcomeType), data = subset(trainD, AnimalType == "Dog"))+
+  geom_histogram(stat = "count", fill  = "blue") +
+  ggtitle("Dog data")
+
+
+grid.arrange(Cat,Dog, ncol =1)
+```
+
+We can see the number of Dogs and cats getting adopted and other other outcomes in the plots above. 
+
+Here we compare the adoption numbers for cats and dogs.
+
+```{r}
+AnimalGrped <- trainD %>%
+  group_by( AnimalType, Date, OutcomeType) %>%
+  summarise(n =n())
+
+a <- ggplot(aes(x = Date, y = n), data = subset(AnimalGrped , AnimalType == "Cat",OutcomeType = "Adoption")) +
+  geom_point(alpha = 0.7, color = "#E69F00")
+
+b <- ggplot(aes(x = Date, y = n), data = subset(AnimalGrped , AnimalType == "Dog",OutcomeType = "Adoption"))+
+  geom_point(alpha = 0.7, color = "#0072B2")
+
+grid.arrange(a,b,ncol = 1)
+
+```
+
+We can see that there is a even distribution for cat adoption month over month. But dog adoption takes an uptick in mid year. this might be due to the fact that there area lot of adoption events during the summer months.
+
+
+```{r}
+Cat <- ggplot(aes(x = OutcomeType, fill = SexuponOutcome), data = subset(trainD, trainD$AnimalType == "Cat")) + geom_histogram(stat = "count") +ggtitle("Cat data")
+
+Dog <- ggplot(aes(x = OutcomeType, fill = SexuponOutcome), data = subset(trainD, trainD$AnimalType == "Dog" & trainD$SexuponOutcome != "")) + geom_histogram(stat = "count") + ggtitle("Dog data")
+
+grid.arrange(Cat,Dog, ncol =1)
+
+```
+
+
+Here we can see a few interesting observations. most of the cats and dogs which are adopted are spayed and neutered. This might be because it's a policy to neuter or spay animals as a term for adoption at many shelters. Sizable number of cats which are intact are transfered. Same with dogs. There were few columns for dog data, which had no entries for the Sexupon outcome cells. I have ignored those in the plot above but have included them below for reference. As we can observe, it does not have a major effect on the plot data.
+```{r}
+ggplot(aes(x = OutcomeType, fill = SexuponOutcome), data = subset(trainD, trainD$AnimalType == "Dog")) + geom_histogram(stat = "count") + ggtitle("Dog data")
+
+```
+
+
+##Converting inconsistent age into age in approximate days
+```{r}
+
+years = "years"
+year = "year"
+months = "months"
+month = "month"
+weeks = "weeks"
+week = "week"
+spltVal = " "
+age <- function(x) {
+  x <-  as.character(x)
+  val <- strsplit(x, spltVal)[[1]]
+  if (grepl(years,x)){
+    return(as.numeric(val[1]) * 365)
+  }
+  else if(grepl(year,x)){
+    return(365)
+  }
+  else if(grepl(months,x)){
+    return( as.numeric(val[1]) * 30)
+  }
+  else if(grepl(month,x)){
+    return(30)
+  }
+  else if(grepl(weeks,x)){
+    return(as.numeric(val[1]) * 7)
+  }
+  else if(grepl(week,x)){
+    return(7)
+  }
+  else {
+    return(as.numeric(val[1]))
+  }
+}
+
+Agelist <- as.list(trainD$AgeuponOutcome)
+trainD$AgeInDays <- lapply(Agelist, function(x) sapply(x,age))
+trainD$AgeInDays <- unlist(trainD$AgeInDays)
+ggplot(aes(x = Date, y = AgeInDays, color = OutcomeType), data = trainD)+
+  geom_jitter(alpha =0.7)
+```
+
+We can see above that most adoptions happen for younger dogs. And most cases of death and euthanasia happen for older dogs. We will look further into the outcome subtype which sheds some light on the reasons for the outcome. 
+
+
+```{r}
+
+CatAgeOutcome <- ggplot(aes(x = Date, y = AgeInDays, color = OutcomeType), data = subset(trainD, AnimalType == "Cat" ))+geom_jitter(alpha = 0.7)+ggtitle("Cat data")
+
+DogAgeOutcome <- ggplot(aes(x = Date, y = AgeInDays, color = OutcomeType), data = subset(trainD, AnimalType == "Dog")) +
+  geom_jitter(alpha = 0.7)+ ggtitle("Dog Data")
+
+#DogAgeOutcome <- ggplot(aes(x = Date, y = AgeInWeeks, color = OutcomeType), data = subset(trainD, trainD$AnimalType == "Dog" & trainD$OutcomeType == "Adoption"))+geom_jitter()
+
+
+grid.arrange(CatAgeOutcome, DogAgeOutcome, ncol=1)
+#subset(trainD, trainD$OutcomeType=="Adoption")
+```
+
+As we can see above most of the adoptions happen when the animals are young. With  Both the animals younger ones get adopted more than older ones. Most of Euthanasia and Return to owner happens for older dogs. Most of the adoptions and transfers happen for younger animals. 
+
+
+##Inspect age wise distribution of animals.
+
+```{r}
+
+trainD$AgeRange <- cut(trainD$AgeInDays, c(0,180, 365, 730, 1460, 1825, max(trainD$AgeInDays, na.rm = T)))
+ggplot(aes(x = AgeRange), data = trainD) +geom_histogram(stat = "count")
+```
+
+As we can see most animals lie in the 1-6 months range. with the number of animals decreasing in range as they go up. The is an uptick in the number of animals for adoption in the oldest range bracket. 
+further we will see if the age has any relation with the outcometype or subtype. 
+
+```{r}
+Outcometyp <- ggplot(aes(x = AgeRange, fill = OutcomeType), data =trainD[!is.na(trainD$AgeRange),]) +geom_histogram(stat = "count")
+
+OutcomeSubtyp <- ggplot(aes(x = AgeRange, fill = OutcomeSubtype), data = trainD[!is.na(trainD$AgeRange),]) +geom_histogram(stat = "count")
+
+Animaltyp <- ggplot(aes(x = AgeRange, fill = AnimalType), data = trainD[!is.na(trainD$AgeRange),]) +geom_histogram(stat = "count")
+
+SexUponOutcm <- ggplot(aes(x = AgeRange, fill = SexuponOutcome), data = trainD[!is.na(trainD$AgeRange),]) +geom_histogram(stat = "count")
+
+grid.arrange(Outcometyp, OutcomeSubtyp, ncol = 1)
+
+```
+
+```{r}
+grid.arrange(Animaltyp, SexUponOutcm,ncol =1)
+```
+
+
+In the plots above we can see the distributions of animals based on their age. We see the distribution of outcomes and type of animal, also the Sex of the animal upon outcome. This gives us an idea of the outcome for animals in every age range. In the outcometype plot we can see that even if there is an increase in older animals in the shelter, many of those are returned to the owner. 
+
+
+##Do a male female comparison
+```{r}
+
+ggplot(aes(x = SexuponOutcome, fill = OutcomeType), data = trainD)+
+  geom_histogram(stat = "count")
+```
+
+Most of the animals are spayed or neutered. And we can see that there is not a lot of difference in sexes of the adopted animals. 
+
+##Looking at the outcome subtype.
+```{r}
+ggplot(aes(fill = OutcomeSubtype , x = SexuponOutcome), data = trainD) +
+  geom_histogram(stat = "count")
+
+#ggplot(aes(fill = OutcomeSubtype , x = OutcomeType), data = trainD) +
+ # geom_histogram(stat = "count")
+```
+
+We can see that for most of the animals the outcome subtype is unknown i.e. left blank. We will a further comparison between outcometype and outcome subtype. 
+
+
+```{r}
+ggplot(aes(x = OutcomeType, fill = OutcomeSubtype), data = trainD) + geom_histogram(stat = "count")
+```
+
+Here we can see that most of the adopted animals didnt have any information on the outcome subtype. and all of the transfers were made to partners. We do not have information on what happens to the animal once it gets transfered out. Major reason for euthanasia is risk of suffering or aggresive behaviour. 
+
+#Final Plots and Summary
+
+We will look at three of the most informative plots we glanced at above. 
+```{r}
+ggplot(aes(x = OutcomeType, fill = OutcomeSubtype), data = trainD) + geom_histogram(stat = "count")
+```
+
+In the plot above we get an idea of how the outcome is related to outcome subtypes. We can see the pattern where based on the outcome subtype we can agther what the outcome for the animal would be.
+```{r}
+ggplot(aes(x = SexuponOutcome, fill = OutcomeType), data = trainD)+
+  geom_histogram(stat = "count")
+```
+
+Here we can see that most of the animals that are neutered are adopted, returned to their owners or transfered to another facility. 
+
+```{r}
+ggplot(aes(x = AgeRange, fill = OutcomeType), data =trainD[!is.na(trainD$AgeRange),]) +geom_histogram(stat = "count")
+```
+
+Here we see the distribution of outcome type based on the age range. 
+```{r}
+a <- ggplot(aes(x = Date, y = n), data = subset(AnimalGrped , AnimalType == "Cat",OutcomeType = "Adoption")) +
+  geom_point(alpha = 0.7, color = "#E69F00")
+
+b <- ggplot(aes(x = Date, y = n), data = subset(AnimalGrped , AnimalType == "Dog",OutcomeType = "Adoption"))+
+  geom_point(alpha = 0.7, color = "#0072B2")
+
+grid.arrange(a,b,ncol = 1)
+
+```
+
+This plot gives us a good idea of the distribution of number of Cats and Dogs Adopted based on the date. 
+
+
+#Reflection
+We can use this dataset to classify and predict the outcome of different animals in the shelter.
+
+##Struggles:
+It was not so much of a struggle but I needed to convert the datetime format into date format. Also the age had to be converted into a format which is even for all entries. Hence I converted the age into number of days. I am not very sure how indicative this dataset is of the national animal adoption. This dataset only explores Cat and Dog adoption, If we can find dataset for other animals we can get a good idea on outcomes for different animals. 
+
+##Successes:
+Exploring the dataset gave me a very good idea about what kind of variables are correlated. And what to expect the outcome to be when I do the actual prediction and apply cassification models. 
+
+##Idea for Exploration:
+Further I want to explore more classification algorithms, and predict the outcome for different cats and dogs in shelters in the city of Asutin.
+
+
+
+
